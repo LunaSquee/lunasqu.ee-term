@@ -1,0 +1,16 @@
+doctype html
+html
+	head
+		meta(charset="utf8")
+		script(src="/socket.io/socket.io.js")
+		script(src="/script/main.js")
+		link(rel="stylesheet", href="/style/main.css")
+		title lunasqu.ee
+	body
+		.term
+			.letterbox
+			.prompt#prompt
+				input#pif(type="text")
+				span#ps1
+				span#fakeinput
+				.cursor.char &nbsp;
