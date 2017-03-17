@@ -217,11 +217,10 @@ function updateCursor () {
 
   // Move cursor down
   if (cursorMoveDown > 0) {
-    offsetLeft = offsetLeft - (promptLen + len) + blockLen
-    if (offsetLeft > promptLen - blockLen) {
-      offsetLeft = offsetLeft - promptLen
-      cursorMoveDown += blockHei
-    }
+    let chars = Math.floor(promptLen / blockLen)
+    let timesOverScreen = Math.floor((posInInput + len) / chars)
+    offsetLeft = (offsetLeft - (chars * timesOverScreen) * blockLen)
+    cursorMoveDown = blockHei * timesOverScreen
   }
 
   // SET CLASS
