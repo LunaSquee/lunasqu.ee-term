@@ -4,6 +4,9 @@ body
     margin: 0
     padding: 0
 
+::selection, ::-moz-selection
+    -webkit-filter: invert(100%)
+    filter: invert(100%)
 .term
     position: absolute
     left: 0
@@ -13,9 +16,12 @@ body
 
 .char
     color: white
-    font-size: 120%
+    font-size: 150%
     display: inline-block
     white-space: pre
+    &.sel
+        background-color: white
+        color: black
 
 .prompt
     position: relative
@@ -32,6 +38,12 @@ body
         &.focus
             background-color: lime
             border: none
+
+    .returnCode
+        position: absolute
+        right: 5px
+        color: red
+        top: 0
 a
     .char
         text-decoration: underline
