@@ -1,8 +1,13 @@
+const EventEmitter = require('events').EventEmitter
+const util = require('util')
+
 let term = {
+  elem: {},
   promptLen: 0,
   returnCode: 0,
   focused: true,
-  promptDisabled: true
+  promptDisabled: true,
+  replicate: true
 }
 
 function hexEncode (str) {
@@ -81,17 +86,17 @@ function chunkify (text, selectedChars) {
 }
 
 function clonePrompt () {
-  let fakePrompt = term.prompt.cloneNode(true)
+  let fakePrompt = term.elem.prompt.cloneNode(true)
   fakePrompt.removeChild(fakePrompt.querySelector('.cursor'))
   fakePrompt.removeChild(fakePrompt.querySelector('#pif'))
   fakePrompt.className = 'prompt old'
   fakePrompt.removeAttribute('id')
-  term.lb.appendChild(fakePrompt)
+  term.elem.lb.appendChild(fakePrompt)
   scrollBottom()
 }
 
 function writeOut (text, cb) {
-  term.lb.innerHTML += chunkify(text)
+  term.elem.lb.innerHTML += chunkify(text)
   if (typeof cb === 'function') cb()
 }
 
@@ -127,9 +132,9 @@ function spellOut (text, delayms, cb) {
     }
 
     if (char === '\n') {
-      term.lb.innerHTML += '<br>'
+      term.elem.lb.innerHTML += '<br>'
     } else {
-      term.lb.innerHTML += '<span class="char char-' + hexVal + (observingCtrl != null ? ' col-' + observingCtrl : '') + '">' + char + '</span>'
+      term.elem.lb.innerHTML += '<span class="char char-' + hexVal + (observingCtrl != null ? ' col-' + observingCtrl : '') + '">' + char + '</span>'
     }
 
     if (i + 1 === chars.length && typeof cb === 'function') cb()
@@ -152,21 +157,21 @@ function updateCursor () {
   let blockLen = charExample.offsetWidth
   let blockHei = charExample.offsetHeight
 
-  let promptLen = term.prompt.clientWidth
+  let promptLen = term.elem.prompt.clientWidth
 
   // Get percise measurements if available
   if (charExample.getBoundingClientRect) {
     blockLen = charExample.getBoundingClientRect().width
     blockHei = charExample.getBoundingClientRect().height
-    promptLen = term.prompt.getBoundingClientRect().width
+    promptLen = term.elem.prompt.getBoundingClientRect().width
   }
 
-  let posInInput = term.input.selectionStart
+  let posInInput = term.elem.input.selectionStart
 
   // Tell chunkifier if the user has highlighted some text in the input
   let selection = null
-  if (term.input.selectionStart !== term.input.selectionEnd) {
-    selection = [term.input.selectionStart, term.input.selectionEnd]
+  if (term.elem.input.selectionStart !== term.elem.input.selectionEnd) {
+    selection = [term.elem.input.selectionStart, term.elem.input.selectionEnd]
   }
 
   // Calculations..
@@ -176,7 +181,7 @@ function updateCursor () {
 
   // Do not show exit code when theres text behind it
   if (offsetLeft > promptLen - blockLen * (4 + term.returnCode.toString().length)) {
-    term.return.style.display = 'none'
+    term.elem.return.style.display = 'none'
   } else if (term.returnCode !== 0) {
     showReturn(term.returnCode)
   }
@@ -190,23 +195,30 @@ function updateCursor () {
     }
   }
 
-  term.cursor.style.left = offsetLeft + 'px'
-  term.cursor.style.top = cursorMoveDown + 'px'
-  term.fakeinput.innerHTML = chunkify(term.input.value, selection)
-
   // SET CLASS
   let baseClass = 'cursor char'
 
   if (term.focused) {
-    term.cursor.className = baseClass + ' focus'
+    term.elem.cursor.className = baseClass + ' focus'
   } else {
-    term.cursor.className = baseClass
+    term.elem.cursor.className = baseClass
   }
+
+  if (!term.replicate) {
+    term.elem.cursor.style.left = len * blockLen + 'px'
+    term.elem.cursor.style.top = '0px'
+    term.elem.fakeinput.innerHTML = ''
+    return
+  }
+
+  term.elem.cursor.style.left = offsetLeft + 'px'
+  term.elem.cursor.style.top = cursorMoveDown + 'px'
+  term.elem.fakeinput.innerHTML = chunkify(term.elem.input.value, selection)
 }
 
 function updatePrompt (ps1) {
   term.promptLen = ps1.replace(/\u001b[0-9a-fr]/g, '').length
-  term.ps1.innerHTML = chunkify(ps1)
+  term.elem.ps1.innerHTML = chunkify(ps1)
   updateCursor()
 }
 
@@ -214,11 +226,11 @@ function setPromptVisible (val) {
   term.promptDisabled = !val
 
   if (term.promptDisabled) {
-    term.prompt.style.display = 'none'
-    term.input.disabled = true
+    term.elem.prompt.style.display = 'none'
+    term.elem.input.disabled = true
   } else {
-    term.prompt.style.display = 'block'
-    term.input.disabled = false
+    term.elem.prompt.style.display = 'block'
+    term.elem.input.disabled = false
   }
 
   updateCursor()
@@ -226,58 +238,161 @@ function setPromptVisible (val) {
 }
 
 function clear () {
-  term.lb.innerHTML = ''
+  term.elem.lb.innerHTML = ''
 }
 
 function focus () {
-  term.input.focus()
+  term.elem.input.focus()
   term.focused = true
   updateCursor()
+}
+
+function setPromptTextReplicate (val) {
+  term.replicate = !val
 }
 
 function showReturn (num) {
   term.returnCode = num
   if (num === 0) {
-    term.return.style.display = 'none'
+    term.elem.return.style.display = 'none'
   } else {
-    term.return.style.display = 'block'
-    term.return.innerHTML = num + ' &crarr;'
+    term.elem.return.style.display = 'block'
+    term.elem.return.innerHTML = num + ' &crarr;'
   }
 }
 
 function doInput () {
   if (term.promptDisabled) return
-  // term.lb.innerHTML += chunkify(term.input.value + '\n')
   clonePrompt()
-  term.input.value = ''
+  term.stdin.handle(term.elem.input.value)
+  term.elem.input.value = ''
+}
+
+class Std extends EventEmitter {
+  constructor (name) {
+    super()
+    this.name = name
+  }
+
+  write (cb) {
+    let args = (typeof cb === 'function' ? Array.prototype.slice.call(arguments, 1) : arguments)
+    let data = util.format.apply(null, args)
+
+    writeOut(data)
+
+    this.emit('data', data)
+    if (typeof cd === 'function') cb()
+  }
+
+  writeDelay (delayms = 100, cb) {
+    let argSlice = (typeof cb === 'function' ? 2 : 1)
+    let data = util.format.apply(null, Array.prototype.slice.call(arguments, argSlice))
+
+    writeOutDelayed(data, delayms, () => {
+      this.emit('data', data)
+      if (typeof cd === 'function') cb()
+    })
+  }
+
+  writeSpell (delayms = 100, cb) {
+    let argSlice = (typeof cb === 'function' ? 2 : 1)
+    let data = util.format.apply(null, Array.prototype.slice.call(arguments, argSlice))
+
+    spellOut(data, delayms, () => {
+      this.emit('data', data)
+      if (typeof cd === 'function') cb()
+    })
+  }
+}
+
+class StdIn extends Std {
+  constructor () {
+    super('stdin')
+    this.history = []
+    this.historyPos = 0
+  }
+
+  write () {
+    let data = util.format.apply(null, arguments)
+    term.elem.input += data
+    doInput()
+    this.emit('data', data)
+  }
+
+  handle (input) {
+    if (term.replicate) {
+      this.history.push(input)
+      this.historyPos = this.history.length
+    }
+    this.emit('data', input)
+  }
+}
+
+function keyDownHandle (e, key) {
+  if (key === 38) {
+    if (term.stdin.historyPos <= 0) {
+      term.stdin.historyPos = 0
+    } else {
+      term.stdin.historyPos -= 1
+    }
+
+    let selection = term.stdin.history[term.stdin.historyPos]
+
+    if (selection) {
+      term.elem.input.value = selection
+    }
+  } else if (key === 40) {
+    if (term.stdin.historyPos >= term.stdin.history.length) {
+      term.stdin.historyPos = term.stdin.history.length
+    } else {
+      term.stdin.historyPos += 1
+    }
+
+    let selection = term.stdin.history[term.stdin.historyPos]
+
+    if (!term.stdin.history[term.stdin.historyPos]) {
+      selection = ''
+    }
+
+    term.elem.input.value = selection
+  }
+}
+
+function addComponentsToTerm () {
+  term.stdout = new Std('stdout')
+  term.stderr = new Std('stderr')
+  term.stdin = new StdIn()
+
+  term.clear = clear
+  term.prompt = setPromptVisible
+  term.setPrompt = updatePrompt
+  term.password = setPromptTextReplicate
+
+  term.promptDefault = function () {
+    term.setPrompt('\x1b3' + term.pwd + '\x1br $ ')
+  }
+
+  term.exitWith = showReturn
+
+  term.pwd = '/home'
+
+  return term
 }
 
 window.onload = () => {
   term.socket = window.io.connect()
-  term.lb = document.querySelector('.letterbox')
-  const prompt = term.prompt = document.querySelector('.prompt')
-  term.ps1 = prompt.querySelector('#ps1')
-  term.fakeinput = prompt.querySelector('#fakeinput')
-  term.cursor = prompt.querySelector('.cursor')
-  term.return = prompt.querySelector('.returnCode')
-  const input = term.input = document.querySelector('#pif')
-  setPromptVisible(false)
-  writeOutDelayed('\x1b8Hello there!\n\n', 100)
-  writeOutDelayed('loading system\n\n', 110)
-  writeOutDelayed('exec \'sh\'\n', 500)
+  term.elem.lb = document.querySelector('.letterbox')
+  const prompt = term.elem.prompt = document.querySelector('.prompt')
+  term.elem.ps1 = prompt.querySelector('#ps1')
+  term.elem.fakeinput = prompt.querySelector('#fakeinput')
+  term.elem.cursor = prompt.querySelector('.cursor')
+  term.elem.return = prompt.querySelector('.returnCode')
+  const input = term.elem.input = document.querySelector('#pif')
 
-  writeOutDelayed('\n\n', 1000, () => {
-    clear()
-    spellOut('Welcome to \x1balunasqu.ee\x1br!\n\n', 60, () => {
-      writeOutDelayed('This is an open-source unix-like fake terminal (https://github.com/LunaSquee/lunasqu.ee-term)\n\n', 100)
-      writeOutDelayed('\xA9 2017 LunaSquee\n\n', 200, () => {
-        setPromptVisible(true)
+  addComponentsToTerm()
 
-        showReturn(1)
-        updatePrompt('\x1b3/home\x1br $ ')
-      })
-    })
-  })
+  term.prompt(true)
+  term.promptDefault()
 
   document.querySelector('body').addEventListener('click', (e) => {
     focus()
@@ -288,8 +403,12 @@ window.onload = () => {
   })
 
   input.addEventListener('keyup', (e) => {
+    term.stdin.value = term.elem.input.value
+
     if (e.keyCode === 13) {
       doInput()
+    } else {
+      keyDownHandle(e, e.keyCode)
     }
 
     focus()
