@@ -1,6 +1,33 @@
 const EventEmitter = require('events').EventEmitter
 const util = require('util')
 
+/**
+ * Web-based shell interface by LunaSquee
+ *
+ * Color codes: Start with control character \x1b
+ * 0 - Black
+ * 1 - Navy Blue
+ * 2 - Green
+ * 3 - Red
+ * 4 - Brown
+ * 5 - Purple
+ * 6 - Olive
+ * 7 - Yellow
+ * 8 - Lime Green
+ * 9 - Teal
+ * a - Aqua Light
+ * b - Royal Blue
+ * c - Hot Pink
+ * d - Dark Gray
+ * e - Light Gray
+ * f - White
+ * r - Reset
+ *
+ * Commands are located in the `commands.js` script
+ */
+
+let commandAPI = require('./commands.js')
+
 let term = {
   elem: {},
   promptLen: 0,
@@ -137,7 +164,9 @@ function spellOut (text, delayms, cb) {
       term.elem.lb.innerHTML += '<span class="char char-' + hexVal + (observingCtrl != null ? ' col-' + observingCtrl : '') + '">' + char + '</span>'
     }
 
-    if (i + 1 === chars.length && typeof cb === 'function') cb()
+    if (i + 1 === chars.length && typeof cb === 'function') {
+      cb()
+    }
   }
 
   for (let i in chars) {
@@ -268,7 +297,7 @@ function doInput () {
   term.elem.input.value = ''
 }
 
-class Std extends EventEmitter {
+class Writable extends EventEmitter {
   constructor (name) {
     super()
     this.name = name
@@ -300,12 +329,14 @@ class Std extends EventEmitter {
 
     spellOut(data, delayms, () => {
       this.emit('data', data)
-      if (typeof cd === 'function') cb()
+      if (typeof cb === 'function') {
+        cb()
+      }
     })
   }
 }
 
-class StdIn extends Std {
+class StdIn extends Writable {
   constructor () {
     super('stdin')
     this.history = []
@@ -316,19 +347,20 @@ class StdIn extends Std {
     let data = util.format.apply(null, arguments)
     term.elem.input += data
     doInput()
-    this.emit('data', data)
   }
 
   handle (input) {
+    if (input === '' || (/^\s+$/.test(input))) return
+
     if (term.replicate) {
       this.history.push(input)
       this.historyPos = this.history.length
     }
-    this.emit('data', input)
+    this.emit('data', input.trim())
   }
 }
 
-function keyDownHandle (e, key) {
+function keyDownHandle (key) {
   if (key === 38) {
     if (term.stdin.historyPos <= 0) {
       term.stdin.historyPos = 0
@@ -359,8 +391,8 @@ function keyDownHandle (e, key) {
 }
 
 function addComponentsToTerm () {
-  term.stdout = new Std('stdout')
-  term.stderr = new Std('stderr')
+  term.stdout = new Writable('stdout')
+  term.stderr = new Writable('stderr')
   term.stdin = new StdIn()
 
   term.clear = clear
@@ -373,8 +405,7 @@ function addComponentsToTerm () {
   }
 
   term.exitWith = showReturn
-
-  term.pwd = '/home'
+  term.prompt(false)
 
   return term
 }
@@ -390,9 +421,8 @@ window.onload = () => {
   const input = term.elem.input = document.querySelector('#pif')
 
   addComponentsToTerm()
-
-  term.prompt(true)
-  term.promptDefault()
+  commandAPI.initialize(term)
+  commandAPI.runCommand(term, ['term', '-w'])
 
   document.querySelector('body').addEventListener('click', (e) => {
     focus()
@@ -408,7 +438,7 @@ window.onload = () => {
     if (e.keyCode === 13) {
       doInput()
     } else {
-      keyDownHandle(e, e.keyCode)
+      keyDownHandle(e.keyCode)
     }
 
     focus()

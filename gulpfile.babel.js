@@ -35,10 +35,9 @@ const sequence = Sequence.use(gulp)
 
 let sources = {
   style: ['main.styl'],
-  document: ['index.pug'],
-  script: ['main.js']
+  document: ['index.pug']
 }
-let lintES = ['src/script/**/*.js', 'server/**/*.js', 'script/**/*.js', 'gulpfile.babel.js', 'app.js']
+let lintES = ['src/script/**/*.js', 'server/**/*.js', 'scripts/**/*.js', 'gulpfile.babel.js', 'app.js']
 
 let inProduction = process.env.NODE_ENV === 'production' || process.argv.indexOf('-p') !== -1
 

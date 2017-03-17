@@ -58,7 +58,7 @@ module.exports.POST = (link, postdata, opts, headers) => {
       })
 
       res.on('error', (e) => {
-        reject({data: e.message, request: res})
+        reject(e)
       })
     })
 
@@ -123,7 +123,7 @@ const getRequest = module.exports.GET = (link, opts, headers) => {
       })
 
       res.on('error', (e) => {
-        reject({data: e.message, request: res})
+        reject(e)
       })
     })
   })
