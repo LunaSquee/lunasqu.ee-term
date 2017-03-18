@@ -221,6 +221,7 @@ function updateCursor () {
     let timesOverScreen = Math.floor((posInInput + len) / chars)
     offsetLeft = (offsetLeft - (chars * timesOverScreen) * blockLen)
     cursorMoveDown = blockHei * timesOverScreen
+    scrollBottom()
   }
 
   // SET CLASS
