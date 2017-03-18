@@ -1,4 +1,4 @@
-const utils = require('./util.js')
+const tutils = require('./t_util.js')
 
 let helpList = {
   'help': '    - display list of commands or help for a specific command',
@@ -142,7 +142,7 @@ let API = module.exports = {
     term.promptDefault()
   },
   loadStaticPage: (page, cb) => {
-    utils.fireRequest('/static/' + page).then((data) => {
+    tutils.fireRequest('/static/' + page).then((data) => {
       let lines = data.split('\n')
       cb(lines)
     }, () => {
