@@ -1,0 +1,11 @@
+
+On this site..
+* https://lunasqu.ee/public/     - public files
+* https://termbin.lunasqu.ee/    - TermBin - pastebin from your terminal
+
+I also run..
+* https://icynet.ml/             - IcyNet IRC Network
+* https://trotland.ml/           - Open-source MMORPG Project (Trotland)
+* https://mlp-episodes.tk/       - List of My Little Pony: Friendship is Magic episodes
+
+Run 'social' for a list of my social network accounts.

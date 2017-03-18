@@ -48,7 +48,7 @@ function hexEncode (str) {
 }
 
 function getURLs (s) {
-  let regexp = /\b((?:https?:\/\/|www\d{0,3}[.]|[a-z0-9.-]+[.][a-z]{2,4}\/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()[\]{};:''.,<>?«»“”‘’]))/gi
+  let regexp = /\b((?:https?|irc:\/\/|www\d{0,3}[.]|[a-z0-9.-]+[.][a-z]{2,4}\/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()[\]{};:''.,<>?«»“”‘’]))/gi
   return s.match(regexp)
 }
 
@@ -344,18 +344,23 @@ class StdIn extends Writable {
 
   write () {
     let data = util.format.apply(null, arguments)
-    term.elem.input += data
+    term.elem.input.value += data
+    updateCursor()
     doInput()
   }
 
   handle (input) {
     if (input === '' || (/^\s+$/.test(input))) return
 
-    if (term.replicate) {
+    if (!commandAPI.commandscape) {
       this.history.push(input)
       this.historyPos = this.history.length
     }
     this.emit('data', input.trim())
+  }
+
+  terminate () {
+    this.write('\x1b^C')
   }
 }
 
@@ -421,7 +426,10 @@ window.onload = () => {
 
   addComponentsToTerm()
   commandAPI.initialize(term)
-  commandAPI.runCommand(term, ['term', '-w'])
+
+  term.socket.on('connect', () => {
+    commandAPI.runCommand(term, ['boot'])
+  })
 
   document.querySelector('body').addEventListener('click', (e) => {
     focus()
@@ -436,6 +444,8 @@ window.onload = () => {
 
     if (e.keyCode === 13) {
       doInput()
+    } else if (e.ctrlKey && e.keyCode === 67) {
+      term.stdin.terminate()
     } else {
       keyDownHandle(e.keyCode)
     }
