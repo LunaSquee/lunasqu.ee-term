@@ -242,6 +242,7 @@ function updateCursor () {
 
   term.elem.cursor.style.left = offsetLeft + 'px'
   term.elem.cursor.style.top = cursorMoveDown + 'px'
+  term.elem.input.style.top = cursorMoveDown + 'px'
   term.elem.fakeinput.innerHTML = chunkify(term.elem.input.value, selection)
 }
 
